@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+  <html>
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width" , initial-scale="1.0"/>
+      <title>Ventilador IoT</title>
+      <script>
+        /* invoca a registraServiceWorker instalar la aplicación en el caché del
+         * navegador. No se espera a que termine el registro. */
+        registraServiceWorker();
+        /** Registra un service worker para instalar la aplicación en el
+         * caché del navegador. La palabra reservada async indica que no espera
+         * a que termine y libera el registro de activación que lo llamó. */
+        async function registraServiceWorker() {
+          if ("serviceWorker" in navigator) {
+            try {
+              /* Registra el service worker y espera que termine. El service
+               * worker debe estar en la carpeta public. La palabra await indica
+               * que espera a que termine y solo puede usarse en una función
+               * async. */
+              const registro = await navigator.serviceWorker.register("sw.js");
+              // Registro correcto y se muestra en la consola.
+              console.log("Service Worker registrado.");
+              console.log(registro);
+            } catch (e) {
+              // Hubo un error en el registro.
+              muestraError(e);
+            }
+          }
+        }
+        /** Procesa una excepción y muestra un mensaje de error.
+         * @param {Error} e descripción del error. */
+        function muestraError(e) {
+          console.log(e);
+          alert(e.message);
+        }
+      </script>
+  
+      <!-- Ícono para la página web. Debe ponerse en la raíz de la página. -->
+      <link rel="icon" sizes="32x32" href="favicon.ico" />
+  
+      <!-- Color de la barra de navegación de Chrome en dispositivos móviles. -->
+      <meta name="theme-color" content="#c7c7c7" />
+  
+      <!-- Configuración de la PWA: Chrome y Edge. -->
+      <link rel="manifest" href="manifest.json" />
+  
+      <!-- Configuración para Web Clip en Safari. -->
+      <meta name="apple-mobile-web-app-title" content="proyectoiotpwa" />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      <link rel="apple-touch-icon" href="img/icono-2048.png" />
+      <link rel="apple-touch-icon" sizes="256x256" href="img/icono-256.png" />
+      <link rel="apple-touch-icon" sizes="1024x1024" href="img/icono-1024.png" />
+      <link rel="apple-touch-icon" sizes="2048x2048" href="img/icono-2048.png" />
+  
+      <script type="module" src="cmp/mi-footer.js"></script>
+      <link rel="stylesheet" href="css/styles.css" />
+      <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet">
+  
+      <!-- Carga el núcleo de Firebase JS SDK -->
+      <script src="/__/firebase/7.15.1/firebase-app.js"></script>
+      <script src="/__/firebase/7.15.1/firebase-storage.js"></script>
+      <script src="/__/firebase/7.15.1/firebase-auth.js"></script>
+      <!-- Agrega el manejo de bases de datos. -->
+      <script src="/__/firebase/7.15.1/firebase-firestore.js"></script>
+      <!-- Configuración de la app web, sustityue esta sección por lo que te
+        indica el sitio de Firebase por tu proyecto. -->
+      <script src="/__/firebase/init.js"></script>
+    <script>
+      const firestore = firebase.firestore();
+      const ID_PROYECTO = "proyectoiotpwa";
+      const ENTIDAD_INTER = "INTERRUPTOR";
+      const ENTIDAD_TEMPERATURA = "TEMPERATURA";
+      const ID = "iot1";
+      const URL_INTER = `https://firestore.googleapis.com/v1/projects/${
+        ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_INTER}/${ID}`;
+      const URL_TEMPERATURA = `https://firestore.googleapis.com/v1/projects/${
+        ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_TEMPERATURA}/${
+        ID}`;
+      const URL_AGREGA = `https://firestore.googleapis.com/v1/projects/${
+        ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_TEMPERATURA}/${
+        ID}/LECTURAS`;
+      const INTERVALO_EN_MILIS = 1000;
+      const MÉTODO_AGREGA = "POST";
+      const MÉTODO_CAMBIOS = "PATCH";
+      const HEADERS_JSON = {
+        "Content-Type": "application/json"
+      };
+      function procesaError(e) {
+        console.log(e);
+        alert(e.message);
+      }
+    </script>
+  </head>
+  <body>
+    <p><h2>Ventilador IoT</h2></p>
+    <p><label>simula un dispositivo IoT, el sensor es representado por la barra deslizadora</label></p>
+    <p><label>conforme se deliza aumenta la temperatura y conforme aumenta la temperatura aumenta la velocidad del ventilador</label></p>
+    <section id=iot>
+      <p>
+        <label>
+          sensor de temperatura
+          <input id="iotTemperatura" type="range" min="0" max="10"
+            onchange="temperaturaModificada();">
+        </label>
+      </p>
+      <p><label>Interruptor <output id="iotInter"></output></label></p>
+      <p><output id="iotError"></output></p>
+    </section>
+    <script>
+      var base = new Image();
+      var eje = new Image();
+      var rota=150;
+      setInterval(defRotacion, INTERVALO_EN_MILIS)
+      setInterval(actualizaIot, INTERVALO_EN_MILIS);
+      iniciaTemperatura();
+      async function actualizaIot() {
+        try {
+          const resp = await fetch(URL_INTER);
+          if (resp.ok) {
+            const json = await resp.json();
+            iotInter.value = json.fields.valor && json.fields.valor.booleanValue ?
+              "Encendido" : "Apagado";
+          } else {
+            iotInter.value = "Apagado";
+            console.log(resp.statusText);
+          }
+        } catch (e) {
+          console.log(e);
+          iotError.value = e.message;
+        }
+      }
+      async function iniciaTemperatura() {
+        try {
+          const resp = await fetch(URL_TEMPERATURA);
+          if (resp.ok) {
+            const json = await resp.json();
+            iotTemperatura.value =
+              json.fields.valor && json.fields.valor.integerValue ?
+                json.fields.valor.integerValue : 0;
+          } else {
+            iotTemperatura.value = 0;
+            console.log(resp.statusText);
+          }
+        } catch (e) {
+          console.log(e);
+          iotError.value = e.message;
+        }
+      }
+      async function temperaturaModificada() {
+        try {
+          rota=data;
+          var data = {
+            fields: { valor: { integerValue: iotTemperatura.value } }
+          };
+          const resp = await fetch(URL_TEMPERATURA, {
+            method: MÉTODO_CAMBIOS,
+            body: JSON.stringify(data),
+            headers: HEADERS_JSON,
+          });
+          if (!resp.ok) {
+            throw new Error(resp.message);
+          }
+          const resp2 = await fetch(URL_AGREGA, {
+            method: MÉTODO_AGREGA,
+            body: JSON.stringify(data),
+            headers: HEADERS_JSON,
+          });
+          if (!resp2.ok) {
+            throw new Error(resp2.message);
+          }
+        } catch (e) {
+          console.log(e);
+          iotError.value = e.message;
+        } 
+      }
+
+      async function defRotacion(rota){
+        try {
+          const resp = await fetch(URL_TEMPERATURA);
+          if (resp.ok) {
+            const json = await resp.json();
+                if(json.fields.valor.integerValue>0&&json.fields.valor.integerValue<4 ?
+                json.fields.valor.integerValue : 0){
+                  rota=250;
+                }else if(json.fields.valor.integerValue>=4&&json.fields.valor.integerValue<7){
+                  rota=500;
+                }else if(json.fields.valor.integerValue>=7){
+                  rota=750
+                }
+          } else {
+            console.log(resp.statusText);
+          }
+        } catch (e) {
+          console.log(e);
+          iotError.value = e.message;
+        }  
+      }
+      function init(){
+        base.src = 'img/base.png';
+        eje.src = 'img/eje2.png';
+        window.requestAnimationFrame(draw);
+        }
+      async function draw() {
+        var ctx = document.getElementById('canvas').getContext('2d');
+        const r=rota;
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.clearRect(0,0,300,300); // limpiar canvas
+  
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.strokeStyle = 'rgba(0,153,255,0.4)';
+        ctx.save();
+        ctx.translate(150,150);
+  
+        // aspas
+        var time = new Date();
+        ctx.rotate( ((r*Math.PI)/60)*time.getSeconds() + ((r*Math.PI)/60000)*time.getMilliseconds() );
+        ctx.fillRect(0,-12,100,24); // aspa 1
+        ctx.fillRect(-100,-12,100,24); // aspa 2
+        ctx.drawImage(eje,-12,-12);
+  
+        ctx.restore();
+        ctx.beginPath();
+        ctx.stroke();
+   
+        ctx.drawImage(base,0,40,300,300);
+  
+        window.requestAnimationFrame(draw);
+      }
+  
+  init();
+    </script>
+    <section id=mp>
+      <p><label>velocidad del ventilador        </label><meter id=mpTemperatura min="0" max="10"></meter></p>
+      
+      <p>
+        <label class="switchBtn">
+          <input id=mpInter type="checkbox" onclick="interModificada();">Interruptor
+        </label>
+      </p>
+    </section>
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <script>
+      actualizaMp();
+      async function actualizaMp() {
+        firestore.collection(ENTIDAD_TEMPERATURA).doc(ID).onSnapshot(
+          doc => {
+            if (doc.exists) {
+              mpTemperatura.value = doc.data().valor || 0;
+            } else {
+              mpTemperatura.value = 0;
+            }
+          },
+          e => {
+            procesaError(e);
+            // muestraLuz();
+          }
+        );
+        const docInter = await firestore.collection(ENTIDAD_INTER).doc(ID).get();
+        mpInter.checked = docInter.exists && Boolean(docInter.data().valor);
+      }
+      async function interModificada() {
+        try {
+          await firestore.collection(ENTIDAD_INTER).doc(ID).set({
+            valor: mpInter.checked
+          });
+        } catch (e) {
+          procesaError(e);
+        }
+      }
+    </script>
+  </body>
+  <mi-footer></mi-footer> 
+</html>
