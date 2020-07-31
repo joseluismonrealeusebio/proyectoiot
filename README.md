@@ -1,3 +1,3 @@
 #proyectoiotpwa
 
-proyecto de iot, con algunos errores :(
+proyecto de iot
